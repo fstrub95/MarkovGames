@@ -54,7 +54,7 @@ class NNQBellmanResidual(object):
 
         self.loss = tf.nn.l2_loss(self.r + self.gamma * tf.reduce_max(tf.reshape(self.y_s_, [-1, self.Na, list_size[-1]]),reduction_indices=1)-self.y_sa)
         #self.optimizer = tf.train.GradientDescentOptimizer(0.005).minimize(self.loss)
-        self.optimizer = tf.train.AdamOptimizer(0.01).minimize(self.loss)
+        self.optimizer = tf.train.AdagradOptimizer(0.1).minimize(self.loss)
 
         self.sess = tf.Session()
         self.sess.run(tf.initialize_all_variables())

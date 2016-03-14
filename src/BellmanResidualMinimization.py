@@ -35,17 +35,15 @@ def minimizationBellmanResidual(fApp, batch, gamma, garnet):
     Q_list_array.append(Q)
     return fApp, Q_list_array
 
-
-    return fApp
-Ns = 100
+Ns = 20
 Na = 5
-Nb = 1
-sparsity = 0.5
+Nb = 5
+sparsity = 0.9
 nIteration = 30
-gamma = 0.9
-garnet = Garnet_MDP(Ns, Na, Nb, sparsity, Nb)
+gamma = 0.99
+garnet = Garnet_MDP(Ns, Na, Nb, sparsity, Ns)
 
-fApp = NNQBellmanResidual([Ns+Na,50,1], DatasetFormat.binary, gamma, garnet)
+fApp = NNQBellmanResidual([Ns+Na,50,20,1], DatasetFormat.binary, gamma, garnet)
 
 batch = garnet.uniform_batch_data(1000)
 
