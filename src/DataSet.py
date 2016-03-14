@@ -17,7 +17,7 @@ class DatasetFormat(Enum):
 class DataSet(object):
     def __init__(self, inputData, outputData):
 
-        # inputData and outputData are numpy array of size (numberExample,SizeExample).
+        # stateAction and reward are numpy array of size (numberExample,SizeExample).
         assert inputData.shape[0] == outputData.shape[0]
         self.inputData = inputData
         self.outputData = outputData

@@ -5,12 +5,26 @@ from tools import *
 from NeuralNet import *
 
 
+def NNToArray(fApp, Ns, Na):
+    lsa=[[(s,a) for a in xrange(Na)] for s in xrange(Ns)]
+    lsa_list, size = merge_(lsa)
+
+    datasetEval = DatasetBuilder(X=lsa_list, Ns=Ns, Na=Na).generate(fApp.getDatasetFormat())
+    Qlist = fApp.eval(datasetEval)
+
+    Q = np.zeros((Ns,Na))
+    for (s,a),q in izip(lsa_list,Qlist):
+        Q[s,a] = q
+    return Q
+
+
 def fittedQ(nIteration, fApp, batch, gamma, garnet):
     # nIteration is the number of iteration
     # fApp is an object containing the regressor
     # batch is the batch of data
     # gamma is gamma
-
+    Q_list_array = []
+    error_list = []
     slist, alist, rlist, s_list = zip(*batch)
     X = zip(slist, alist)
     lists_b = []
@@ -28,6 +42,8 @@ def fittedQ(nIteration, fApp, batch, gamma, garnet):
 
 
     for i in xrange(nIteration):
+        print "#########################################"
+        print "Iteration %d"%(i)
         ###### building database ######
         # building possible next state-action list
 
@@ -45,15 +61,24 @@ def fittedQ(nIteration, fApp, batch, gamma, garnet):
         datasetTrain = builder.generate(fApp.getDatasetFormat())
 
         # learning the next qfunction
-        fApp.learn(datasetTrain)
-
-    return fApp
-
-nIteration = 100
-fApp = NNQ([104,50,1], DatasetFormat.binary)
-garnet = Garnet_MDP(100, 4, 5, 0.9, 100)
-batch = garnet.uniform_batch_data(300)
+        fApp.learn(datasetTrain, nEpoch=30)
+        Q = NNToArray(fApp,garnet.s,garnet.a)
+        Q_list_array.append(Q)
+        err = garnet.l2error(Q,gamma)
+        error_list.append(err)
+        print "#########################################"
+        print "ereur %f"%(err)
+    return fApp,Q_list_array
+Ns = 100
+Na = 10
+Nb = 5
+sparsity = 0.9
+nIteration = 30
+fApp = NNQ([Ns+Na,20,1], DatasetFormat.binary)
+garnet = Garnet_MDP(Ns, Na, Nb, sparsity, Nb)
+batch = garnet.uniform_batch_data(1000)
 gamma = 0.99
 
 
-fittedQ(nIteration, fApp, batch, gamma, garnet)
+fApp,Q_list = fittedQ(nIteration, fApp, batch, gamma, garnet)
+

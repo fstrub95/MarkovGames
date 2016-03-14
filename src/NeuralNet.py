@@ -52,11 +52,10 @@ class NNQ(object):
 
 
     def eval(self,dataset):
-        res = self.sess.run(self.y_out, feed_dict={self.x: dataset.InputData()})
+        res = self.sess.run(self.y_out, feed_dict={self.x: dataset.StateAction()})
         return list(res)
 
-    def learn(self, dataset, nEpoch = 10, nMiniBatch = 20):
-
+    def learn(self, dataset, nEpoch = 10, nMiniBatch = 20, learningRate = 0.01):
         for i in xrange(nEpoch*dataset.NumberExample()):
             # Creating the mini-batch
             batch_xs, batch_ys = dataset.NextBatch(nMiniBatch)
@@ -69,8 +68,8 @@ class NNQ(object):
                 err = self.sess.run(self.loss, feed_dict={self.x: dataset.inputData, self.t: dataset.outputData})
                 err /= dataset.NumberExample()
 
-                # test error computationdataset.inputData
-                errMiniBatch = self.sess.run(self.loss, feed_dict={self.x: batch_xs, self.t: batch_ys})
-                print "###################################################"
+                # test error computationdataset.stateAction
+                errMiniBatch, normYOut = self.sess.run((self.loss,tf.nn.l2_loss(self.y_out)), feed_dict={self.x: batch_xs, self.t: batch_ys})
+                print "####"
                 print "step %d, training err %g"%(i, errMiniBatch)
-                print "step %d, test err     %g"%(i, errMiniBatch)
+                print "step %d, training err normalised %g"%(i, errMiniBatch/normYOut)

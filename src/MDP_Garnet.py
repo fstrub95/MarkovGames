@@ -73,3 +73,62 @@ class Garnet_MDP:
                 ech.append(self.rollout(state, [action], 2, [policy__]))  # uniform sampling
         sars_ = [(s, a, r, s_) for [[s, [a], r], [s_, [a_], r_]] in ech]
         return sars_
+
+    def policy_evaluation_exact_v(self, policy_list, gamma):
+        Na = self.a
+        Ns = self.s
+        Id = np.zeros((self.s, self.s))
+        R_pi = np.zeros((self.s))
+        Ker_pi = np.zeros((self.s, self.s))
+        for i in np.ndindex((self.s)):
+            Id[i, i] = 1
+        ker_non_stat = np.copy(Id)
+        req_non_stat = np.zeros((self.s))
+        for policy in policy_list:
+            for i in range(self.s):
+                R_pi[i] = np.vdot(self.reward[i, :], policy[i, :])
+            for i, j in np.ndindex((self.s, self.s)):
+                Ker_pi[j, i] = np.vdot(self.kernel[i, j, :], policy[j, :])
+            ker_non_stat = gamma * Ker_pi.dot(ker_non_stat)
+            req_non_stat = R_pi + gamma * Ker_pi.dot(req_non_stat)
+        v_non_stat = np.linalg.solve(Id - ker_non_stat, req_non_stat)
+        return v_non_stat
+
+    def policy_evaluation_exact_Q(self, policy_list, gamma):
+        Q_non_stat = np.zeros((self.s, self.a))
+        v_non_stat = self.policy_evaluation_exact_v(policy_list, gamma)
+        for i, j in np.ndindex((self.s, self.a)):
+            Q_non_stat[i, j] = self.reward[i, j] + gamma * np.vdot(v_non_stat, self.kernel[:, i, j])
+        return Q_non_stat
+
+    def Apply_bellman(self, policy_list, Q_function, gamma):
+        Q_function_ = np.copy(Q_function)
+        for policy in policy_list:
+            ## calcul de la qfunction suivante
+            v=np.asarray([np.vdot(Q_function_[j, :], policy[j, :]) for j in range(self.s)])
+            for i, j in np.ndindex((self.s, self.a)):
+                Q_function_[i, j] = self.reward[i, j] + gamma * np.vdot(v, self.kernel[:, i, j])
+        return Q_function_
+
+    def policy_iteration_exact(self, gamma):
+        policy = np.zeros((self.s, self.a))
+        policy_ = np.zeros((self.s, self.a))
+        for i in range(self.s):
+            policy[i, 0] = 1
+        while not(np.array_equal(policy, policy_)) and not(np.linalg.norm(self.policy_evaluation_exact_v([policy], gamma)-self.policy_evaluation_exact_v([policy_], gamma)) < pow(10, -9)):
+            policy_ = np.copy(policy)
+            q = self.policy_evaluation_exact_Q([policy_], gamma)
+            policy = self.greedy_policy(q)
+        return [policy]
+
+    def greedy_policy(self,Q_function):
+        policy = np.zeros(((Q_function[:, 0]).size, (Q_function[0, :]).size))
+        for i in range((Q_function[:, 0]).size):
+            policy[i, np.argmax(Q_function[i, :], axis=0)] = 1
+        return policy
+
+    def l2error(self, Q, gamma):
+        policy = self.greedy_policy(Q)
+        Q_pi = self.policy_evaluation_exact_Q([policy], gamma)
+        Q_star = self.policy_evaluation_exact_Q(self.policy_iteration_exact(gamma), gamma)
+        return np.linalg.norm(Q_pi - Q_star)/np.linalg.norm(Q_star)
