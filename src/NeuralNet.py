@@ -52,7 +52,7 @@ class NNQ(object):
 
 
     def eval(self,dataset):
-        res = self.sess.run(self.y_out, feed_dict={self.x: dataset.StateAction()})
+        res = self.sess.run(self.y_out, feed_dict={self.x: dataset.InputData()})
         return list(res)
 
     def learn(self, dataset, nEpoch = 10, nMiniBatch = 20, learningRate = 0.01):
@@ -65,7 +65,7 @@ class NNQ(object):
 
             if i%(dataset.NumberExample()) == 0:
                 # train error computation
-                err = self.sess.run(self.loss, feed_dict={self.x: dataset.inputData, self.t: dataset.outputData})
+                err = self.sess.run(self.loss, feed_dict={self.x: dataset.InputData(), self.t: dataset.OutputData()})
                 err /= dataset.NumberExample()
 
                 # test error computationdataset.stateAction

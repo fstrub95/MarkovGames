@@ -29,15 +29,24 @@ def minimizationBellmanResidual(fApp, batch, gamma, garnet):
     salist = zip(slist, alist)
 
     # evaluation of next state value
-    datasetsas_r = DatasetBuilderBellmanResidual(SA = salist, R = rlist, S_ = s_list, Ns=garnet.s, Na=garnet.a).generate(fApp.getDatasetFormat())
+    datasetsas_r = DatasetBuilderBellmanResidual(SA = salist, R = rlist, S_ = s_list, Ns=garnet.s, Na=garnet.a)\
+        .generate(fApp.getDatasetFormat())
+
     fApp.minimizeBellmanResidual(datasetsas_r)
     Q = NNToArray(fApp,garnet.s,garnet.a)
     Q_list_array.append(Q)
     return fApp, Q_list_array
 
+
+
+
 Ns = 20
 Na = 5
 Nb = 5
+
+noSamples=Ns * Na * Nb * 3
+
+sparsity = 0.9
 sparsity = 0.9
 nIteration = 30
 gamma = 0.99
@@ -47,10 +56,7 @@ fApp = NNQBellmanResidual([Ns+Na,20,1], DatasetFormat.binary, gamma, garnet)
 
 batch = garnet.uniform_batch_data(1000)
 
-
-
 fApp,Q_list = minimizationBellmanResidual(fApp, batch, gamma, garnet)
-
 
 print garnet.l2error(Q_list[0], gamma)
 

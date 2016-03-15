@@ -52,7 +52,9 @@ class NNQBellmanResidual(object):
         self.y_sa = buildOutput(self.layers, self.sa)
         self.y_s_ = buildOutput(self.layers, self.s_)
 
-        self.loss = tf.nn.l2_loss(self.r + self.gamma * tf.reduce_max(tf.reshape(self.y_s_, [-1, self.Na, list_size[-1]]),reduction_indices=1)-self.y_sa)
+        self.maxQ = tf.reduce_max(tf.reshape(self.y_s_, [-1, self.Na, list_size[-1]]),reduction_indices=1)
+
+        self.loss = tf.nn.l2_loss(self.r + self.gamma * self.maxQ - self.y_sa)
         #self.optimizer = tf.train.GradientDescentOptimizer(0.005).minimize(self.loss)
         self.optimizer = tf.train.AdagradOptimizer(0.1).minimize(self.loss)
 
@@ -68,6 +70,7 @@ class NNQBellmanResidual(object):
         return list(res)
 
     def minimizeBellmanResidual(self, dataset, nEpoch = 300, nMiniBatch = 50):
+
         for i in xrange(nEpoch*dataset.NumberExample()):
             # Creating the mini-batch
             batch_sa, batch_s_, batch_r = dataset.NextBatch(nMiniBatch)

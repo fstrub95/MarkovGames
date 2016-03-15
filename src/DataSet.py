@@ -28,7 +28,7 @@ class DataSet(object):
     def InputData(self):
         return self.inputData
 
-    def IutputData(self):
+    def OutputData(self):
         return self.outputData
 
     def EpochCompleted(self):

@@ -24,7 +24,7 @@ def fittedQ(nIteration, fApp, batch, gamma, garnet):
     # batch is the batch of data
     # gamma is gamma
     Q_list_array = []
-    error_list = []
+    error_list = {"errBellmanResidual":[],"errDiffQstarQpi":[]}
     slist, alist, rlist, s_list = zip(*batch)
     X = zip(slist, alist)
     lists_b = []
@@ -61,13 +61,18 @@ def fittedQ(nIteration, fApp, batch, gamma, garnet):
         datasetTrain = builder.generate(fApp.getDatasetFormat())
 
         # learning the next qfunction
-        fApp.learn(datasetTrain, nEpoch=30)
+        fApp.learn(datasetTrain, nEpoch=5)
         Q = NNToArray(fApp,garnet.s,garnet.a)
         Q_list_array.append(Q)
-        err = garnet.l2error(Q,gamma)
-        error_list.append(err)
-        print "#########################################"
-        print "ereur %f"%(err)
+        errDiffQstarQpi = garnet.l2errorDiffQstarQpi(Q, gamma)
+        errBellmanResidual = garnet.l2errorBellmanResidual(Q, gamma)
+
+        error_list["errDiffQstarQpi"].append(errDiffQstarQpi)
+        error_list["errBellmanResidual"].append(errBellmanResidual)
+
+        print "######################################### Erreur exact"
+        print "errDiffQstarQpi %f"%(errDiffQstarQpi)
+        print "errBellmanResidual %f"%(errBellmanResidual)
     return fApp,Q_list_array
 Ns = 100
 Na = 10

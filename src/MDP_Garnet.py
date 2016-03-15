@@ -127,8 +127,24 @@ class Garnet_MDP:
             policy[i, np.argmax(Q_function[i, :], axis=0)] = 1
         return policy
 
-    def l2error(self, Q, gamma):
+    def getQStar(self, gamma):
+        return self.policy_evaluation_exact_Q(self.policy_iteration_exact(gamma), gamma)
+
+
+    def getQpi(self, Q, gamma):
         policy = self.greedy_policy(Q)
-        Q_pi = self.policy_evaluation_exact_Q([policy], gamma)
-        Q_star = self.policy_evaluation_exact_Q(self.policy_iteration_exact(gamma), gamma)
-        return np.linalg.norm(Q_pi - Q_star)/np.linalg.norm(Q_star)
+        return self.policy_evaluation_exact_Q([policy], gamma)
+
+
+    def l2(self, estimate, target):
+        return np.linalg.norm(estimate - target)/np.linalg.norm(target)
+
+    def l2errorDiffQstarQpi(self, Q, gamma):
+        Q_pi   = self.getQpi(Q, gamma)
+        Q_star = self.getQStar(gamma)
+        return self.l2(Q_pi, Q_star)
+
+    def l2errorBellmanResidual(self, Q, gamma):
+        policy = self.greedy_policy(Q)
+        TQ = self.Apply_bellman([policy],Q,gamma)
+        return self.l2(TQ, Q)
