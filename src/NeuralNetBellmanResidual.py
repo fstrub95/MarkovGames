@@ -28,7 +28,7 @@ def buildOutput(layers,placeholder):
     y = placeholder
     for layer in layers[:-1]:
         y = tf.matmul(y, layer.w) + layer.b
-        y = tf.nn.relu(y)
+        y = tf.nn.tanh(y)
 
     y = tf.matmul(y, layers[-1].w) + layers[-1].b
     return y

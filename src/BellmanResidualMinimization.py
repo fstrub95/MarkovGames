@@ -43,7 +43,7 @@ nIteration = 30
 gamma = 0.99
 garnet = Garnet_MDP(Ns, Na, Nb, sparsity, Ns)
 
-fApp = NNQBellmanResidual([Ns+Na,50,20,1], DatasetFormat.binary, gamma, garnet)
+fApp = NNQBellmanResidual([Ns+Na,20,1], DatasetFormat.binary, gamma, garnet)
 
 batch = garnet.uniform_batch_data(1000)
 
