@@ -1,28 +1,8 @@
 __author__ = 'julien-perolat'
 
-import tensorflow as tf
-import numpy as np
-from DataSet import DataSet
+from Layer import *
 
 
-class Layer:
-    def __init__(self, inputSize, ouputSize):
-        self.w = weight_variable([inputSize, ouputSize]) #warning regarding line/column
-        self.b = bias_variable([ouputSize])
-        self.a = None
-        self.y = None
-
-
-
-
-############# Usefull functions #################
-def weight_variable(shape):
-  initial = tf.truncated_normal(shape, stddev=0.1)
-  return tf.Variable(initial)
-
-def bias_variable(shape):
-  initial = tf.constant(0.1, shape=shape)
-  return tf.Variable(initial)
 
 class NNQ(object):
     def __init__(self,list_size, datasetFormat):
@@ -31,7 +11,7 @@ class NNQ(object):
         self.x = tf.placeholder(tf.float32, shape=[None, list_size[0]])
         self.t = tf.placeholder(tf.float32, shape=[None, list_size[-1]])
 
-        self.layers = [Layer(list_size[i],list_size[i+1]) for i in xrange(len(list_size)-1)]
+        self.layers = [Layer(list_size[i],list_size[i+1], "layer_"+str(i)) for i in xrange(len(list_size)-1)]
 
         y_out = self.x
         for layer in self.layers[:-1]:
@@ -45,6 +25,10 @@ class NNQ(object):
         self.optimizer = tf.train.GradientDescentOptimizer(0.01).minimize(self.loss)
 
         self.sess = tf.Session()
+
+        self.writer = tf.train.SummaryWriter("/home/fstrub/Projects/MarkovGames/out", self.sess.graph.as_graph_def(add_shapes=True))
+
+
         self.sess.run(tf.initialize_all_variables())
 
     def getDatasetFormat(self):

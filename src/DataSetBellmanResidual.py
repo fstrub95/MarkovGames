@@ -15,30 +15,26 @@ class DatasetFormat(Enum):
 
 
 class DataSetBellmanResidual(object):
-    def __init__(self, stateAction, nextStates, reward, shapeMDP, typeDataset):
+    def __init__(self, stateActionAndNextSates, reward, shapeMDP, typeDataset):
 
         # stateAction and reward are numpy array of size (numberExample,SizeExample).
-        assert stateAction.shape[0] == reward.shape[0] == nextStates.shape[0]
+        assert stateActionAndNextSates.shape[0] == reward.shape[0]
 
-        self.stateAction = stateAction
-        self.nextStates = nextStates
+        self.stateActionAndNextSates = stateActionAndNextSates
         self.reward = reward
 
         self.epochCompleted = 0
         self.indexEpochCompleted = 0
 
-        self.numberExample = stateAction.shape[0]
+        self.numberExample = reward.shape[0]
 
         self.shapeMDP = shapeMDP
         self.typeDataset = typeDataset # (Ns,Na)
 
-    def StateAction(self):
-        return self.stateAction
+    def InputData(self):
+        return self.stateActionAndNextSates
 
-    def NextStates(self):
-        return self.nextStates
-
-    def Reward(self):
+    def TargetData(self):
         return self.reward
 
     def EpochCompleted(self):
@@ -80,8 +76,7 @@ class DataSetBellmanResidual(object):
             np.random.shuffle(permute)
 
             #shuffle data
-            self.stateAction  = self.stateAction[permute]
-            self.nextStates  = self.nextStates[permute]
+            self.stateActionAndNextSates  = self.stateActionAndNextSates[permute]
             self.reward = self.reward[permute]
 
             #reset indices
@@ -90,33 +85,8 @@ class DataSetBellmanResidual(object):
             assert sizeBatch <= self.numberExample
 
         end = self.indexEpochCompleted
-        return self.stateAction[start:end], self.nextStates[start:end], self.reward[start:end]
+        return self.stateActionAndNextSates[start:end], self.reward[start:end]
 
-    def NextBatchDense(self,sizeBatch):
-        # return a minibatch of size sizeBatch
-        start = self.indexEpochCompleted
-        self.indexEpochCompleted = self.indexEpochCompleted + sizeBatch
-
-        #when all the samples are used, restart and shuffle
-        if self.indexEpochCompleted > self.numberExample:
-            self.epochCompleted +=1
-
-            #inplace permutation
-            permute = np.arange(self.numberExample)
-            np.random.shuffle(permute)
-
-            #shuffle data
-            self.stateAction  = self.stateAction[permute]
-            self.nextStates  = self.nextStates[permute]
-            self.reward = self.reward[permute]
-
-            #reset indices
-            start = 0
-            self.indexEpochCompleted = sizeBatch
-            assert sizeBatch <= self.numberExample
-
-        end = self.indexEpochCompleted
-        return self.stateAction[start:end], self.nextStates[start:end], self.reward[start:end]
 
 
 
@@ -156,42 +126,43 @@ class DatasetBuilderBellmanResidual(object):
     def generateBinary(self):
         sizeDataset = len(self.SA)
 
-        stateAction  = np.zeros((sizeDataset, self.Ns + self.Na))
-        nextStates  = np.zeros((sizeDataset, self.Na, self.Ns + self.Na))
+        stateActionAndNextSates  = np.zeros((sizeDataset, self.Na + self.Ns , self.Na + 1))
+
         reward = np.zeros((sizeDataset, 1))
         for i,(s,a),r,s_ in izip(xrange(sizeDataset), self.SA, self.R, self.S_):
-            # stateAction as binary representation
-            stateAction[i, s] = 1
-            stateAction[i, self.Ns + a] = 1
 
-            # next state
-            for j in xrange(self.Na):
-                nextStates[i, j, s_] = 1
-                nextStates[i, j, self.Ns + j] = 1
+            #Q(s,a)
+            stateActionAndNextSates[i, s, 0]           = 1
+            stateActionAndNextSates[i, self.Ns + a, 0] = 1
 
-            # reward
+            #Q(s_,b)
+            for j in xrange(1, self.Na+1):
+                stateActionAndNextSates[i, s_, j]          = 1
+                stateActionAndNextSates[i, self.Ns+j-1, j] = 1
+
+            #reward
             reward[i, 0] = r
 
-        return DataSetBellmanResidual(stateAction, nextStates, reward, (self.Ns, self.Na), DatasetFormat.binary)
+        return DataSetBellmanResidual(stateActionAndNextSates, reward, (self.Ns, self.Na), DatasetFormat.binary)
 
 
-    def generateDense(self):
-        sizeDataset = len(self.SA)
-
-        stateAction = np.zeros((sizeDataset, 2))
-        nextStates = np.zeros((sizeDataset, self.Na, 2))
-        reward = np.zeros((sizeDataset, 1))
-        for i,(s,a),r,s_ in izip(xrange(sizeDataset), self.SA, self.R, self.S_):
-            # stateAction as dense representation
-            stateAction[i, 0] = s
-            stateAction[i, 1] = a
-
-            # next state
-            for j in xrange(self.Na):
-                nextStates[i, j, 0] = s_
-                nextStates[i, j, 1] = j
-
-            # reward
-            reward[i, 0] = r
-
-        return DataSetBellmanResidual(stateAction, nextStates, reward, (self.Ns, self.Na), DatasetFormat.dense)
+    # def generateDense(self):
+    #     sizeDataset = len(self.SA)
+    #
+    #     stateAction = np.zeros((sizeDataset, 2))
+    #     nextStates = np.zeros((sizeDataset, self.Na, 2))
+    #     reward = np.zeros((sizeDataset, 1))
+    #     for i,(s,a),r,s_ in izip(xrange(sizeDataset), self.SA, self.R, self.S_):
+    #         # stateAction as dense representation
+    #         stateAction[i, 0] = s
+    #         stateAction[i, 1] = a
+    #
+    #         # next state
+    #         for j in xrange(self.Na):
+    #             nextStates[i, j, 0] = s_
+    #             nextStates[i, j, 1] = j
+    #
+    #         # reward
+    #         reward[i, 0] = r
+    #
+    #     return DataSetBellmanResidual(stateAction, nextStates, reward, (self.Ns, self.Na), DatasetFormat.dense)

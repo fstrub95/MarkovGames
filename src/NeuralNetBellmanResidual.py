@@ -1,37 +1,40 @@
 __author__ = 'julien-perolat'
 
-import tensorflow as tf
 import numpy as np
-from DataSetBellmanResidual import DataSetBellmanResidual
-from DataSet import DataSet
 
-class Layer:
-    def __init__(self, inputSize, ouputSize):
-        self.w = weight_variable([inputSize, ouputSize]) #warning regarding line/column
-        self.b = bias_variable([ouputSize])
-        self.a = None
-        self.y = None
+from Layer import *
 
 
+def conv2d(x, W):
+    return tf.nn.conv2d(x, W,  strides=[1, 1, 1, 1], padding='VALID')
 
+def build_conv(x, in_size, out_size):
+        W_conv = weight_variable([in_size,1, 1, out_size])
+        b_conv = bias_variable([out_size])
 
-############# Usefull functions #################
-def weight_variable(shape):
-  initial = tf.truncated_normal(shape, stddev=0.1)
-  return tf.Variable(initial)
+        h_conv   = tf.nn.relu(conv2d(x, W_conv) + b_conv)
+        h_conv_t = tf.transpose(h_conv, perm = [0,3,2,1])
 
-def bias_variable(shape):
-  initial = tf.constant(0.1, shape=shape)
-  return tf.Variable(initial)
+        #shape (?, outsize, action_size, 1)
+        return h_conv_t
 
-def buildOutput(layers,placeholder):
-    y = placeholder
-    for layer in layers[:-1]:
-        y = tf.matmul(y, layer.w) + layer.b
-        y = tf.nn.tanh(y)
+def build_QLayer(x):
 
-    y = tf.matmul(y, layers[-1].w) + layers[-1].b
-    return y
+    dim = int(x.get_shape()[2]) #action size
+
+    conv_out   = tf.reshape(x, [-1, dim])
+
+    out_conv_t = tf.transpose(conv_out)
+
+    partitions = np.zeros(dim, dtype=int)
+    partitions[0] = 1
+
+    slices = tf.dynamic_partition(out_conv_t, partitions.tolist(), 2)
+
+    Qa = tf.transpose(slices[1])
+    Qb = tf.transpose(slices[0])
+
+    return Qa, Qb
 
 
 class NNQBellmanResidual(object):
@@ -39,58 +42,70 @@ class NNQBellmanResidual(object):
         self.datasetFormat = datasetFormat
         self.gamma = gamma
         self.Na = garnet.a
+        self.Ns = garnet.s
 
-        # Building placeholder for s,sa and s_
-        self.sa = tf.placeholder(tf.float32, shape=[None, list_size[0]])
-        self.s_ = tf.placeholder(tf.float32, shape=[None, list_size[0]])
-        self.r = tf.placeholder(tf.float32, shape=[None, list_size[-1]])
+        self.input   = tf.placeholder(tf.float32, shape=[None, self.Na + self.Ns , self.Na + 1])
+        self.target  = tf.placeholder(tf.float32, shape=[None, 1])
+        self.tfgamma =  tf.constant(gamma)
 
-        # Building layers
-        self.layers = [Layer(list_size[i],list_size[i+1]) for i in xrange(len(list_size)-1)]
 
-        # Building output
-        self.y_sa = buildOutput(self.layers, self.sa)
-        self.y_s_ = buildOutput(self.layers, self.s_)
+        #fit convolution shape constraints
+        input_reshape  = tf.reshape(self.input, [-1, self.Na + self.Ns, self.Na + 1, 1])
 
-        self.maxQ = tf.reduce_max(tf.reshape(self.y_s_, [-1, self.Na, list_size[-1]]),reduction_indices=1)
+        #build convolution networks
+        conv_out = input_reshape
+        for i in xrange(0, len(list_size)-1):
+            conv_out = build_conv(conv_out, list_size[i],list_size[i+1])
+            #print(conv_out.get_shape())
 
-        self.loss = tf.nn.l2_loss(self.r + self.gamma * self.maxQ - self.y_sa)
-        #self.optimizer = tf.train.GradientDescentOptimizer(0.005).minimize(self.loss)
-        self.optimizer = tf.train.AdagradOptimizer(0.1).minimize(self.loss)
+
+        #Get the Q values from the network
+        Qa, Qb = build_QLayer(conv_out)
+
+        #pick the best Q value of s_
+        Qbmax = tf.reduce_max(Qb, reduction_indices=1, keep_dims=True)
+
+
+        self.output = Qa - self.tfgamma * Qbmax
+
+        self.loss = tf.nn.l2_loss(self.output-self.target)
+
+        self.optimizer = tf.train.AdamOptimizer().minimize(self.loss)
 
         self.sess = tf.Session()
+        self.writer = tf.train.SummaryWriter("/home/fstrub/Projects/MarkovGames/out", self.sess.graph.as_graph_def(add_shapes=True))
+
         self.sess.run(tf.initialize_all_variables())
+
+
 
     def getDatasetFormat(self):
         return self.datasetFormat
 
 
     def eval(self, dataset):
-        res = self.sess.run(self.y_sa, feed_dict={self.sa: dataset.StateAction()})
+        res = self.sess.run(self.output, feed_dict={self.input: dataset.InputData()})
         return list(res)
 
-    def minimizeBellmanResidual(self, dataset, nEpoch = 300, nMiniBatch = 50):
+
+    def minimizeBellmanResidual(self, dataset, nEpoch = 10, nMiniBatch = 50):
 
         for i in xrange(nEpoch*dataset.NumberExample()):
+
             # Creating the mini-batch
-            batch_sa, batch_s_, batch_r = dataset.NextBatch(nMiniBatch)
-            shape = batch_s_.shape
+            batch_input, batch_target = dataset.NextBatch(nMiniBatch)
+
 
 
             # running one step of the optimization method on the mini-batch
             #self.sess.run(self.optimizer, feed_dict={self.sa: batch_sa, self.s_: batch_s__, self.r: batch_r})
-            self.sess.run(self.optimizer, feed_dict={self.sa: batch_sa, self.s_: np.reshape(batch_s_, (-1,batch_s_.shape[-1])), self.r: batch_r}) ###### peut-etre que les operations de reshape ne sont pas inversibles...
+            self.sess.run(self.optimizer,
+                          feed_dict={self.input: batch_input, self.target: batch_target})
 
             if i%(dataset.NumberExample()) == 0:
                 # train error computation
 
                 # test error computationdataset.stateAction
-                errMiniBatch, normYOut = self.sess.run((self.loss,tf.nn.l2_loss(self.y_sa)),
-                                                       feed_dict={self.sa: dataset.StateAction(),
-                                                                  self.s_: np.reshape(dataset.NextStates(),
-                                                                                      (-1,dataset.NextStates().shape[-1])),
-                                                                  self.r: dataset.Reward()})
+                errBatch = self.sess.run(self.loss, feed_dict={self.input: dataset.InputData(), self.target: dataset.TargetData()})
                 print "####"
-                print "step %d, training err %g"%(i, errMiniBatch/dataset.NumberExample())
-                print "step %d, norm training set %g"%(i, normYOut/dataset.NumberExample())
-                print "step %d, training err normalised %g"%(i, errMiniBatch/normYOut)
+                print "step %d, empirical training residual %g"%(i, errBatch/dataset.NumberExample())

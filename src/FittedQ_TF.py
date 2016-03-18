@@ -1,8 +1,8 @@
 __author__ = 'julien-perolat'
 from DataSet import *
 from MDP_Garnet import *
-from tools import *
 from NeuralNet import *
+from tools import *
 
 
 def NNToArray(fApp, Ns, Na):
@@ -45,8 +45,8 @@ def fittedQ(nIteration, fApp, batch, gamma, garnet):
         print "#########################################"
         print "Iteration %d"%(i)
         ###### building database ######
-        # building possible next state-action list
 
+        # building possible next state-action list
         Qlist = fApp.eval(datasetEval)
 
         # retrieve max of Q for tuple (s_,b)
@@ -54,7 +54,7 @@ def fittedQ(nIteration, fApp, batch, gamma, garnet):
         Qlist = [max(l) for l in Qlist]
 
         # output list
-        Y= [r+gamma*q for r, q in izip(rlist,Qlist)]
+        Y = [r+gamma*q for r, q in izip(rlist,Qlist)]
 
         #generate dataset
         builder = DatasetBuilder(X=X, Y=Y,Ns=garnet.s, Na=garnet.a)
@@ -62,28 +62,25 @@ def fittedQ(nIteration, fApp, batch, gamma, garnet):
 
         # learning the next qfunction
         fApp.learn(datasetTrain, nEpoch=5)
-        Q = NNToArray(fApp,garnet.s,garnet.a)
-        Q_list_array.append(Q)
-        errDiffQstarQpi = garnet.l2errorDiffQstarQpi(Q, gamma)
-        errBellmanResidual = garnet.l2errorBellmanResidual(Q, gamma)
 
-        error_list["errDiffQstarQpi"].append(errDiffQstarQpi)
-        error_list["errBellmanResidual"].append(errBellmanResidual)
-
-        print "######################################### Erreur exact"
-        print "errDiffQstarQpi %f"%(errDiffQstarQpi)
-        print "errBellmanResidual %f"%(errBellmanResidual)
     return fApp,Q_list_array
+
+
+
+
+
+
 Ns = 100
 Na = 10
 Nb = 5
 sparsity = 0.9
 nIteration = 30
-fApp = NNQ([Ns+Na,20,1], DatasetFormat.binary)
+
 garnet = Garnet_MDP(Ns, Na, Nb, sparsity, Nb)
 batch = garnet.uniform_batch_data(1000)
+
+fApp = NNQ([Ns+Na,20,1], DatasetFormat.binary)
+
 gamma = 0.99
-
-
 fApp,Q_list = fittedQ(nIteration, fApp, batch, gamma, garnet)
 

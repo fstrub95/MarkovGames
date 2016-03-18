@@ -20,18 +20,26 @@ def NNToArray(fApp, Ns, Na):
 
 
 def minimizationBellmanResidual(fApp, batch, gamma, garnet):
+
+
+
+
     # nIteration is the number of iteration
     # fApp is an object containing the regressor
     # batch is the batch of data
     # gamma is gamma
+
     Q_list_array = []
     slist, alist, rlist, s_list = zip(*batch)
     salist = zip(slist, alist)
 
     # evaluation of next state value
     datasetsas_r = DatasetBuilderBellmanResidual(SA = salist, R = rlist, S_ = s_list, Ns=garnet.s, Na=garnet.a)\
-        .generate(fApp.getDatasetFormat())
+         .generate(fApp.getDatasetFormat())
 
+    #fApp.eval(datasetsas_r)
+
+    #
     fApp.minimizeBellmanResidual(datasetsas_r)
     Q = NNToArray(fApp,garnet.s,garnet.a)
     Q_list_array.append(Q)
@@ -40,23 +48,21 @@ def minimizationBellmanResidual(fApp, batch, gamma, garnet):
 
 
 
-Ns = 20
-Na = 5
+Ns = 100
+Na = 10
 Nb = 5
 
-noSamples=Ns * Na * Nb * 3
-
-sparsity = 0.9
-sparsity = 0.9
-nIteration = 30
-gamma = 0.99
+#generate data
+noSamples = Ns * Na
+sparsity = 1
 garnet = Garnet_MDP(Ns, Na, Nb, sparsity, Ns)
+batch = garnet.uniform_batch_data(noSamples)
 
-fApp = NNQBellmanResidual([Ns+Na,20,1], DatasetFormat.binary, gamma, garnet)
+#train network
+nIteration = 10
+gamma = 0.9
+fApp = NNQBellmanResidual([Ns+Na,32,1], DatasetFormat.binary, gamma, garnet)
+fApp, Q_list = minimizationBellmanResidual(fApp, batch, gamma, garnet)
 
-batch = garnet.uniform_batch_data(1000)
-
-fApp,Q_list = minimizationBellmanResidual(fApp, batch, gamma, garnet)
-
-print garnet.l2error(Q_list[0], gamma)
+print garnet.l2errorDiffQstarQpi(Q_list[0], gamma)
 
