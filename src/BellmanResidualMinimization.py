@@ -53,8 +53,8 @@ Na = 10
 Nb = 5
 
 #generate data
-noSamples = Ns * Na
-sparsity = 1
+noSamples = Ns * Na * Nb
+sparsity = 0.5
 garnet = Garnet_MDP(Ns, Na, Nb, sparsity, Ns)
 batch = garnet.uniform_batch_data(noSamples)
 

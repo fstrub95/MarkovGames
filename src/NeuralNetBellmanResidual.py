@@ -15,6 +15,8 @@ def build_conv(x, in_size, out_size):
         h_conv   = tf.nn.relu(conv2d(x, W_conv) + b_conv)
         h_conv_t = tf.transpose(h_conv, perm = [0,3,2,1])
 
+        #h_conv_t   = tf.nn.dropout(h_conv_t,0.5)
+
         #shape (?, outsize, action_size, 1)
         return h_conv_t
 
@@ -40,13 +42,12 @@ def build_QLayer(x):
 class NNQBellmanResidual(object):
     def __init__(self,list_size, datasetFormat, gamma, garnet):
         self.datasetFormat = datasetFormat
-        self.gamma = gamma
         self.Na = garnet.a
         self.Ns = garnet.s
 
         self.input   = tf.placeholder(tf.float32, shape=[None, self.Na + self.Ns , self.Na + 1])
         self.target  = tf.placeholder(tf.float32, shape=[None, 1])
-        self.tfgamma =  tf.constant(gamma)
+        self.gamma =  tf.constant(gamma)
 
 
         #fit convolution shape constraints
@@ -56,7 +57,6 @@ class NNQBellmanResidual(object):
         conv_out = input_reshape
         for i in xrange(0, len(list_size)-1):
             conv_out = build_conv(conv_out, list_size[i],list_size[i+1])
-            #print(conv_out.get_shape())
 
 
         #Get the Q values from the network
@@ -65,10 +65,13 @@ class NNQBellmanResidual(object):
         #pick the best Q value of s_
         Qbmax = tf.reduce_max(Qb, reduction_indices=1, keep_dims=True)
 
+        #compute the Bellman residual
+        self.output = Qa - self.gamma * Qbmax
 
-        self.output = Qa - self.tfgamma * Qbmax
-
+        #compute the loss with the reward
         self.loss = tf.nn.l2_loss(self.output-self.target)
+
+        #Misc
 
         self.optimizer = tf.train.AdamOptimizer().minimize(self.loss)
 
