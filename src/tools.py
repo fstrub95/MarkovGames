@@ -60,3 +60,24 @@ def split_(X, len_x):
         X = X[len_x[0]:]
         len_x = len_x[1:]
     return X_
+
+from cPickle import load, dump
+
+
+def save(obj, filename):
+    print "Saving " + filename
+    f = open(filename, 'w')
+    dump(obj, f)
+    f.close()
+
+
+def load_file(filename):
+    f = open(filename, 'r')
+    try:
+        v = load(f)
+    except:
+        v=[]
+        print "Et merde!"
+    f.close()
+    return v
+

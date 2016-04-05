@@ -74,6 +74,8 @@ class Garnet_MDP:
         sars_ = [(s, a, r, s_) for [[s, [a], r], [s_, [a_], r_]] in ech]
         return sars_
 
+    ################################################################""
+
     def policy_evaluation_exact_v(self, policy_list, gamma):
         Na = self.a
         Ns = self.s
